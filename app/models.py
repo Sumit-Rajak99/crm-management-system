@@ -1,14 +1,32 @@
 from django.db import models
+from django.core.validators import MinLengthValidator, RegexValidator
 
 
 # Employee / Manager Login
-class Login(models.Model): 
-    email = models.EmailField(max_length=254, unique=True)
-    password = models.CharField(max_length=128)
-    
+class Login(models.Model):
+
+    email = models.EmailField(
+        max_length=254,
+        unique=True
+    )
+
+    password = models.CharField(
+        max_length=128,
+        validators=[
+            MinLengthValidator(
+                8,
+                message="Password must be at least 8 characters long."
+            ),
+            RegexValidator(
+                regex=r'^(?=.*[A-Za-z])(?=.*\d).+$',
+                message="Password must contain at least one letter and one number."
+            )
+        ]
+    )
 
 
 # Lead / Customer
+
 class Lead(models.Model):
 
     STATUS_CHOICES = (
@@ -21,11 +39,37 @@ class Lead(models.Model):
         ('lost', 'Lost'),
     )
 
-    name = models.CharField(max_length=100)
-    phone = models.CharField(max_length=15)
-    email = models.EmailField(blank=True)
-    source = models.CharField(max_length=100)
-    course_interested = models.CharField(max_length=100)
+    name = models.CharField(
+        max_length=100,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-z ]+$',
+                message='Name should contain only alphabets and spaces.'
+            )
+        ]
+    )
+
+    phone = models.CharField(
+        max_length=10,
+        validators=[
+            RegexValidator(
+                regex=r'^[0-9]{10}$',
+                message='Phone number must contain exactly 10 digits.'
+            )
+        ]
+    )
+
+    email = models.EmailField(
+        blank=True
+    )
+
+    source = models.CharField(
+        max_length=100
+    )
+
+    course_interested = models.CharField(
+        max_length=100
+    )
 
     assigned_to = models.ForeignKey(
         Login,
@@ -41,14 +85,20 @@ class Lead(models.Model):
         default='new'
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    updated_at = models.DateTimeField(
+        auto_now=True
+    )
 
     def __str__(self):
         return self.name
-
-
 # Call History
+from django.db import models
+
+
 class Call(models.Model):
 
     CALL_TYPE_CHOICES = (
@@ -82,8 +132,18 @@ class Call(models.Model):
         default='outgoing'
     )
 
-    call_datetime = models.DateTimeField(auto_now_add=True)
+    outcome = models.CharField(
+        max_length=30,
+        choices=OUTCOME_CHOICES,
+        default='not_connected'
+    )
 
+    call_datetime = models.DateTimeField(
+        auto_now_add=True
+    )
+
+    def __str__(self):
+        return f"{self.lead.name} - {self.call_type}"
     # Duration in seconds
     duration = models.PositiveIntegerField(default=0)
 
@@ -99,6 +159,10 @@ class Call(models.Model):
 
 
 # Follow Up
+from django.db import models
+from django.core.validators import RegexValidator
+
+
 class FollowUp(models.Model):
 
     STATUS_CHOICES = (
@@ -119,9 +183,19 @@ class FollowUp(models.Model):
         related_name='follow_ups'
     )
 
-    follow_up_type = models.CharField(max_length=100)
+    follow_up_type = models.CharField(
+        max_length=100,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-z ]+$',
+                message='Follow-up type should contain only alphabets and spaces.'
+            )
+        ]
+    )
 
-    remarks = models.TextField(blank=True)
+    remarks = models.TextField(
+        blank=True
+    )
 
     next_follow_up_date = models.DateTimeField()
 
@@ -131,14 +205,15 @@ class FollowUp(models.Model):
         default='pending'
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(
+        auto_now_add=True
+    )
 
     def __str__(self):
         return f"{self.lead.name} - {self.status}"
-
-
 # Conversion
 class Conversion(models.Model):
+    
 
     lead = models.OneToOneField(
         Lead,
@@ -153,11 +228,23 @@ class Conversion(models.Model):
         related_name='conversions'
     )
 
-    converted_date = models.DateTimeField(auto_now_add=True)
+    converted_date = models.DateTimeField(
+        auto_now_add=True
+    )
 
-    course = models.CharField(max_length=100)
+    course = models.CharField(
+        max_length=100,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-z0-9 .&+-]+$',
+                message='Course name contains invalid characters.'
+            )
+        ]
+    )
 
-    remarks = models.TextField(blank=True)
+    remarks = models.TextField(
+        blank=True
+    )
 
     def __str__(self):
         return f"{self.lead.name} - Converted"
@@ -179,19 +266,53 @@ class NewEmployee(models.Model):
 
     employee_id = models.CharField(
         max_length=20,
-        unique=True
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-z0-9_-]+$',
+                message='Employee ID can contain only letters, numbers, hyphen and underscore.'
+            )
+        ]
     )
 
-    full_name = models.CharField(max_length=100)
+    full_name = models.CharField(
+        max_length=100,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-z ]+$',
+                message='Full name should contain only alphabets and spaces.'
+            )
+        ]
+    )
 
-    phone = models.CharField(max_length=15)
+    phone = models.CharField(
+        max_length=10,
+        validators=[
+            RegexValidator(
+                regex=r'^[0-9]{10}$',
+                message='Phone number must contain exactly 10 digits.'
+            )
+        ]
+    )
 
     department = models.CharField(
-        max_length=100
+        max_length=100,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-z ]+$',
+                message='Department should contain only alphabets and spaces.'
+            )
+        ]
     )
 
     designation = models.CharField(
-        max_length=100
+        max_length=100,
+        validators=[
+            RegexValidator(
+                regex=r'^[A-Za-z ]+$',
+                message='Designation should contain only alphabets and spaces.'
+            )
+        ]
     )
 
     role = models.CharField(
