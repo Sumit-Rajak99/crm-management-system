@@ -83,6 +83,16 @@ DATABASES = {
     }
 }
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.mysql",
+#         "NAME": "CRM_DATABASE",
+#         "USER": "root",
+#         "PASSWORD": "sumit793",
+#         "HOST": "127.0.0.1",
+#         "PORT": "3306",
+#     }
+# }
 
 # Password validation
 # https://docs.djangoproject.com/en/6.1/ref/settings/#auth-password-validators
@@ -133,6 +143,9 @@ MAILERS = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173", 
     "http://127.0.0.1:5173", 
+    "http://localhost:8000",
+    "http://127.0.0.1:8000", 
 ]
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
