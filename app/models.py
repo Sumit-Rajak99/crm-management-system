@@ -9,6 +9,7 @@ class Login(models.Model):
         max_length=254,
         
     )
+    
 
     password = models.CharField(
         max_length=128,
@@ -259,9 +260,11 @@ class NewEmployee(models.Model):
     )
 
     login = models.OneToOneField(
-        Login,
-        on_delete=models.CASCADE,
-        related_name='employee_profile'
+    Login,
+    on_delete=models.SET_NULL,
+    related_name='employee_profile',
+    null=True,
+    blank=True
     )
 
     employee_id = models.CharField(

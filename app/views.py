@@ -8,7 +8,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-
+from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
 from .excel_utils import save_lead_to_excel
 from .models import Login
@@ -147,3 +147,19 @@ class NewEmployeeViewSet(ModelViewSet):
     def perform_create(self, serializer):
         employee = serializer.save()
         save_employee_to_excel(employee)
+
+    @action(detail=False, methods=['get'], url_path='stats')
+    def employee_stats(self, request):
+        total_employees = NewEmployee.objects.count()
+        active_employees = NewEmployee.objects.filter(
+            is_active=True
+        ).count()
+        inactive_employees = NewEmployee.objects.filter(
+            is_active=False
+        ).count()
+
+        return Response({
+            "total_employees": total_employees,
+            "active_employees": active_employees,
+            "inactive_employees": inactive_employees
+        })
