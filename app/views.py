@@ -148,18 +148,18 @@ class NewEmployeeViewSet(ModelViewSet):
         employee = serializer.save()
         save_employee_to_excel(employee)
 
-    @action(detail=False, methods=['get'], url_path='stats')
-    def employee_stats(self, request):
-        total_employees = NewEmployee.objects.count()
-        active_employees = NewEmployee.objects.filter(
-            is_active=True
-        ).count()
-        inactive_employees = NewEmployee.objects.filter(
-            is_active=False
-        ).count()
+    def list(self, request, *args, **kwargs):
+        employees = NewEmployee.objects.all()
+
+        serializer = self.get_serializer(employees, many=True)
+
+        total_employees = employees.count()
+        active_employees = employees.filter(is_active=True).count()
+        inactive_employees = employees.filter(is_active=False).count()
 
         return Response({
             "total_employees": total_employees,
             "active_employees": active_employees,
-            "inactive_employees": inactive_employees
+            "inactive_employees": inactive_employees,
+            "employees": serializer.data
         })
