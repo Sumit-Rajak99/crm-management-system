@@ -11,6 +11,7 @@ from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework_simplejwt.tokens import RefreshToken
 from .excel_utils import save_lead_to_excel
+from django.utils import timezone
 from .models import Login
 from .models import (
     Login,
@@ -267,3 +268,214 @@ class NewEmployeeViewSet(ModelViewSet):
             "inactive_employees": inactive_employees,
             "employees": serializer.data
         })
+
+
+
+
+
+
+
+
+
+# EXECUTIVE DASHBOARD BACKEND START
+
+
+
+class ExecutiveDashboardAPIView(APIView):
+    """
+    Executive dashboard summary.
+    Admin ke existing views ko modify nahi karta.
+    """
+
+    def get(self, request):
+        today = timezone.localdate()
+
+        total_leads = Lead.objects.count()
+        converted_leads = Conversion.objects.count()
+        total_calls = Call.objects.count()
+
+        pending_followups = FollowUp.objects.filter(
+            status="pending"
+        ).count()
+
+        today_followups = FollowUp.objects.filter(
+            next_follow_up_date__date=today,
+            status="pending"
+        ).count()
+
+        conversion_rate = (
+            round((converted_leads / total_leads) * 100, 2)
+            if total_leads else 0
+        )
+
+        return Response({
+            "total_leads": total_leads,
+            "converted_leads": converted_leads,
+            "conversion_rate": conversion_rate,
+            "total_calls": total_calls,
+            "pending_followups": pending_followups,
+            "today_followups": today_followups
+        }, status=status.HTTP_200_OK)
+
+
+# Executive My Leads API
+
+class ExecutiveMyLeadsAPIView(APIView):
+    """
+    Returns leads assigned to the executive.
+    """
+
+    def get(self, request):
+        employee_id = request.query_params.get("employee_id")
+
+        if not employee_id:
+            return Response(
+                {"error": "employee_id is required for testing."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        leads = Lead.objects.filter(assigned_to_id=employee_id)
+
+        data = [
+            {
+                "id": lead.id,
+                "name": lead.name,
+                "phone": lead.phone,
+                "email": lead.email,
+                "source": lead.source,
+                "course_interested": lead.course_interested,
+                "status": lead.status,
+            }
+            for lead in leads
+        ]
+
+        return Response(
+            {"total_leads": len(data), "leads": data},
+            status=status.HTTP_200_OK
+        )
+
+
+
+
+# Executive My Calls API
+
+class ExecutiveMyCallsAPIView(APIView):
+    """
+    Returns calls for the selected employee.
+    """
+
+    def get(self, request):
+        employee_id = request.query_params.get("employee_id")
+
+        if not employee_id:
+            return Response(
+                {"error": "employee_id is required for testing."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        calls = Call.objects.filter(employee_id=employee_id).select_related("lead")
+
+        data = [
+            {
+                "id": call.id,
+                "lead_id": call.lead_id,
+                "lead_name": call.lead.name,
+                "call_type": call.call_type,
+                "outcome": call.outcome,
+                "duration": call.duration,
+                "notes": call.notes,
+                "call_datetime": call.call_datetime,
+            }
+            for call in calls
+        ]
+
+        return Response(
+            {"total_calls": len(data), "calls": data},
+            status=status.HTTP_200_OK
+        )    
+
+
+
+
+
+# Executive My Follow-ups API
+
+class ExecutiveMyFollowUpsAPIView(APIView):
+    """
+    Returns follow-ups for the selected employee.
+    """
+
+    def get(self, request):
+        employee_id = request.query_params.get("employee_id")
+
+        if not employee_id:
+            return Response(
+                {"error": "employee_id is required for testing."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        followups = FollowUp.objects.filter(
+            employee_id=employee_id
+        ).select_related("lead").order_by("next_follow_up_date")
+
+        data = [
+            {
+                "id": followup.id,
+                "lead_id": followup.lead_id,
+                "lead_name": followup.lead.name,
+                "follow_up_type": followup.follow_up_type,
+                "remarks": followup.remarks,
+                "next_follow_up_date": followup.next_follow_up_date,
+                "status": followup.status,
+            }
+            for followup in followups
+        ]
+
+        return Response(
+            {"total_followups": len(data), "followups": data},
+            status=status.HTTP_200_OK
+        )    
+    
+
+
+
+
+
+
+# Executive Profile API
+
+class ExecutiveProfileAPIView(APIView):
+    """
+    Returns employee profile for testing.
+    """
+
+    def get(self, request):
+        employee_id = request.query_params.get("employee_id")
+
+        if not employee_id:
+            return Response(
+                {"error": "employee_id is required for testing."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            employee = NewEmployee.objects.get(login_id=employee_id)
+        except NewEmployee.DoesNotExist:
+            return Response(
+                {"error": "Employee profile not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        data = {
+            "employee_id": employee.employee_id,
+            "full_name": employee.full_name,
+            "email": employee.login.email,
+            "phone": employee.phone,
+            "department": employee.department,
+            "designation": employee.designation,
+            "role": employee.role,
+            "joining_date": employee.joining_date,
+            "is_active": employee.is_active,
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
