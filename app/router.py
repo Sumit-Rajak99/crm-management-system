@@ -16,6 +16,11 @@ from .views import (
     ExecutiveMyCallsAPIView,
     ExecutiveMyFollowUpsAPIView,
     ExecutiveProfileAPIView,
+    ExecutiveLeadStatusUpdateAPIView,
+    ExecutiveCreateCallAPIView,
+    ExecutiveCreateFollowUpAPIView,
+    ExecutiveUpdateFollowUpAPIView,
+    ExecutiveLeadConversionAPIView,
 )
 
 router = DefaultRouter()
@@ -63,6 +68,34 @@ path(
     "executive/profile/",
     ExecutiveProfileAPIView.as_view(),
     name="executive-profile",
+),
+
+path(
+    "executive/leads/<int:lead_id>/status/",
+    ExecutiveLeadStatusUpdateAPIView.as_view(),
+    name="executive-lead-status-update",
+),
+path(
+    "executive/my-calls/create/",
+    ExecutiveCreateCallAPIView.as_view(),
+    name="executive-create-call",
+),
+
+path(
+    "executive/my-follow-ups/create/",
+    ExecutiveCreateFollowUpAPIView.as_view(),
+    name="executive-create-follow-up",
+),
+path(
+    "executive/my-follow-ups/<int:followup_id>/",
+    ExecutiveUpdateFollowUpAPIView.as_view(),
+    name="executive-update-follow-up",
+),
+
+path(
+    "executive/leads/<int:lead_id>/convert/",
+    ExecutiveLeadConversionAPIView.as_view(),
+    name="executive-lead-convert",
 ),
 
 ]

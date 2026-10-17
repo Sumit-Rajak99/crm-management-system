@@ -479,3 +479,375 @@ class ExecutiveProfileAPIView(APIView):
         }
 
         return Response(data, status=status.HTTP_200_OK)
+
+
+
+
+
+
+
+
+
+
+
+
+# Executive Lead Status Update API
+class ExecutiveLeadStatusUpdateAPIView(APIView):
+
+    def patch(self, request, lead_id):
+        employee_id = request.query_params.get("employee_id")
+
+        if not employee_id:
+            return Response(
+                {"error": "employee_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            lead = Lead.objects.get(
+                id=lead_id,
+                assigned_to_id=employee_id
+            )
+        except Lead.DoesNotExist:
+            return Response(
+                {"error": "Assigned lead not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        new_status = request.data.get("status")
+
+        valid_statuses = [
+            choice[0] for choice in Lead.STATUS_CHOICES
+        ]
+
+        if new_status not in valid_statuses:
+            return Response(
+                {
+                    "error": "Invalid status.",
+                    "valid_statuses": valid_statuses
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        lead.status = new_status
+        lead.save()
+
+        return Response(
+            {
+                "message": "Lead status updated successfully.",
+                "lead_id": lead.id,
+                "status": lead.status
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+
+
+
+# Executive Create Call Log API
+class ExecutiveCreateCallAPIView(APIView):
+
+    def post(self, request):
+        employee_id = request.query_params.get("employee_id")
+
+        if not employee_id:
+            return Response(
+                {"error": "employee_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        lead_id = request.data.get("lead_id")
+
+        try:
+            lead = Lead.objects.get(
+                id=lead_id,
+                assigned_to_id=employee_id
+            )
+        except (Lead.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {"error": "Assigned lead not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        call_type = request.data.get("call_type", "outgoing")
+        outcome = request.data.get("outcome", "not_connected")
+
+        valid_call_types = [
+            choice[0] for choice in Call.CALL_TYPE_CHOICES
+        ]
+        valid_outcomes = [
+            choice[0] for choice in Call.OUTCOME_CHOICES
+        ]
+
+        if call_type not in valid_call_types:
+            return Response(
+                {"error": "Invalid call_type."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if outcome not in valid_outcomes:
+            return Response(
+                {"error": "Invalid outcome."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            duration = int(request.data.get("duration", 0))
+            if duration < 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return Response(
+                {"error": "duration must be a non-negative integer."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        call = Call.objects.create(
+            lead=lead,
+            employee_id=employee_id,
+            call_type=call_type,
+            outcome=outcome,
+            duration=duration,
+            notes=request.data.get("notes", "")
+        )
+
+        return Response(
+            {
+                "message": "Call log created successfully.",
+                "id": call.id,
+                "lead_id": call.lead_id,
+                "call_type": call.call_type,
+                "outcome": call.outcome,
+                "duration": call.duration,
+                "notes": call.notes
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+
+
+# Executive Create Follow-up API
+class ExecutiveCreateFollowUpAPIView(APIView):
+
+    def post(self, request):
+        employee_id = request.query_params.get("employee_id")
+
+        if not employee_id:
+            return Response(
+                {"error": "employee_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        lead_id = request.data.get("lead_id")
+
+        try:
+            lead = Lead.objects.get(
+                id=lead_id,
+                assigned_to_id=employee_id
+            )
+        except (Lead.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {"error": "Assigned lead not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        follow_up_type = request.data.get("follow_up_type")
+        next_date = request.data.get("next_follow_up_date")
+
+        if not follow_up_type or not next_date:
+            return Response(
+                {
+                    "error": (
+                        "follow_up_type and next_follow_up_date "
+                        "are required."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        followup = FollowUp(
+            lead=lead,
+            employee_id=employee_id,
+            follow_up_type=follow_up_type,
+            remarks=request.data.get("remarks", ""),
+            next_follow_up_date=next_date,
+            status="pending"
+        )
+
+        try:
+            followup.full_clean()
+            followup.save()
+        except Exception as exc:
+            from django.core.exceptions import ValidationError
+            from django.utils.dateparse import parse_datetime
+
+            return Response(
+                {"error": "Invalid follow-up data. Check the date and type."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {
+                "message": "Follow-up created successfully.",
+                "id": followup.id,
+                "lead_id": followup.lead_id,
+                "follow_up_type": followup.follow_up_type,
+                "next_follow_up_date": followup.next_follow_up_date,
+                "status": followup.status
+            },
+            status=status.HTTP_201_CREATED
+        )
+
+
+
+
+
+
+# Executive Update Follow-up API
+class ExecutiveUpdateFollowUpAPIView(APIView):
+
+    def patch(self, request, followup_id):
+        employee_id = request.query_params.get("employee_id")
+
+        if not employee_id:
+            return Response(
+                {"error": "employee_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            followup = FollowUp.objects.get(
+                id=followup_id,
+                employee_id=employee_id
+            )
+        except (FollowUp.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {"error": "Follow-up not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        allowed_fields = {
+            "status",
+            "next_follow_up_date",
+            "remarks",
+            "follow_up_type"
+        }
+
+        updates = {
+            key: value
+            for key, value in request.data.items()
+            if key in allowed_fields
+        }
+
+        if not updates:
+            return Response(
+                {"error": "Provide a valid field to update."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        valid_statuses = [
+            choice[0] for choice in FollowUp.STATUS_CHOICES
+        ]
+
+        if (
+            "status" in updates
+            and updates["status"] not in valid_statuses
+        ):
+            return Response(
+                {"error": "Invalid follow-up status."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        for field, value in updates.items():
+            setattr(followup, field, value)
+
+        try:
+            followup.full_clean()
+            followup.save()
+        except Exception:
+            return Response(
+                {"error": "Invalid follow-up data."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {
+                "message": "Follow-up updated successfully.",
+                "id": followup.id,
+                "status": followup.status,
+                "next_follow_up_date": followup.next_follow_up_date,
+                "remarks": followup.remarks
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+
+
+
+# Executive Lead Conversion API
+class ExecutiveLeadConversionAPIView(APIView):
+
+    def post(self, request, lead_id):
+        employee_id = request.query_params.get("employee_id")
+
+        if not employee_id:
+            return Response(
+                {"error": "employee_id is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            lead = Lead.objects.get(
+                id=lead_id,
+                assigned_to_id=employee_id
+            )
+        except (Lead.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {"error": "Assigned lead not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if Conversion.objects.filter(lead=lead).exists():
+            return Response(
+                {"error": "This lead is already converted."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        course = request.data.get("course")
+        if not course:
+            return Response(
+                {"error": "course is required."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        conversion = Conversion(
+            lead=lead,
+            converted_by_id=employee_id,
+            course=course,
+            remarks=request.data.get("remarks", "")
+        )
+
+        try:
+            conversion.full_clean()
+            conversion.save()
+        except Exception:
+            return Response(
+                {"error": "Invalid conversion data. Check the course name."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        lead.status = "converted"
+        lead.save(update_fields=["status", "updated_at"])
+
+        return Response(
+            {
+                "message": "Lead converted successfully.",
+                "lead_id": lead.id,
+                "conversion_id": conversion.id,
+                "status": lead.status,
+                "course": conversion.course
+            },
+            status=status.HTTP_201_CREATED
+        )
